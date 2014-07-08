@@ -27,6 +27,7 @@ import Control.Exception
 import Data.Serialize
 
 import qualified Network.Socket as NS
+import qualified Network.URI as U
 
 import System.Log.Logger
 
@@ -46,12 +47,20 @@ pause = threadDelay testDelay
 
 whenIPv6 :: Assertion -> Assertion
 whenIPv6 assn = do
-    addresses <- lookupAddresses NS.AF_INET6 NS.Stream "localhost:1"
+    let (Just localhost) = addressOf "tcp://[::1]:1"
+    addresses <- lookupAddresses NS.AF_INET6 NS.Stream localhost
     case addresses of
         [] -> do
-            warningM _log $ "IPv6 not available"
+            warningM _log "IPv6 not available"
             return ()
         _ -> assn
+
+addressOf   :: String -> Maybe String
+addressOf s = do
+    uri <- U.parseURI s
+    auth <- U.uriAuthority uri
+    return $ (cleanBrackets . U.uriRegName) auth ++ ":" ++ U.uriPort auth
+        where cleanBrackets = dropWhile (== '[') . takeWhile (/= ']')
 
 {-
 Common tests--just supply the transport factory and an address generator
